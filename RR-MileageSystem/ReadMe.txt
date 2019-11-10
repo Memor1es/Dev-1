@@ -1,0 +1,1 @@
+To get this to work you need to add (miles) to the `owned_vehicles` table. and this will do the rest. check the config for update time.
