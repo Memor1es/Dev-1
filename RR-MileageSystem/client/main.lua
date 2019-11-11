@@ -34,32 +34,26 @@ RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
 	PlayerData.job = job
 end)
+--===========================================================================================[LOOPS]=============================================================================================--
 
 Citizen.CreateThread(
-	function()
-		while true do 
-			Citizen.Wait(1000)
-			ESX.TriggerServerCallback('RR-MileagSystem:getVehiclesPlease', function (vehicles)
-				for i=1, #vehicles, 1 do
-					local vehicle      = vehicles[i].vehicle
-					local VehDecode    = json.decode(vehicle.vehicle)
-					local miles        = vehicle.miles 
-					local plate        = vehicle.plate
-					local owner        = vehicle.owner 
-					local player       = GetPlayerPed(-1)
-					local vehicleS     = GetVehiclePedIsIn(player, false)
-					local VehicleT     = ESX.Game.GetVehicleProperties(vehicleS)
-					if IsPedInAnyVehicle(player, true) then 
-						if GetPedInVehicleSeat(vehicleS, -1) then 
-							if IsVehicleEngineOn(vehicleS) then
-								Citizen.Wait(Config.UpdateTime) 
-								miles = miles + 1 
-								TriggerServerEvent('RR:UpdateMiles', VehicleT.plate, miles)
-							end
-						end
+    function()
+	    while true do 
+		    Citizen.Wait(60000) -- 1 Minute
+				local player       = GetPlayerPed(-1)
+				local vehicleS     = GetVehiclePedIsIn(player, false)
+                local vehicleT     = ESX.Game.GetVehicleProperties(vehicleS)
+                local plate        = GetPlateFromList(vehicleT.plate)
+                local miles        = GetMilesFromList(plate)
+			if IsPedInAnyVehicle(player, true) then 
+				if GetPedInVehicleSeat(vehicleS, -1) then 
+					if IsVehicleEngineOn(vehicleS) and plate == plate then
+						Citizen.Wait(Config.UpdateTime) 
+						miles = miles + 1 
+						TriggerServerEvent('RR:UpdateMiles', VehicleT.plate, miles)
 					end
 				end
-			end)
+			end
 		end
 	end
 )
@@ -67,24 +61,28 @@ Citizen.CreateThread(
 local uix = 0.01135
 local uiy = 0.002
 
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(0)
-        ESX.TriggerServerCallback('RR-MileagSystem:getVehiclesPlease', function (vehicles)
+Citizen.CreateThread(
+    function()
+        while true do
+            Citizen.Wait(0)
             if IsPedInAnyVehicle(GetPlayerPed(-1), false) then
                 RefreshList()
                 local veh = GetVehiclePedIsIn(GetPlayerPed(-1), false)
-                local prop = ESX.Game.GetVehicleProperties(veh)
+                    local prop = ESX.Game.GetVehicleProperties(veh)
                     if IsPlateInList(prop.plate) then
                     local RRVehicle = GetPlateFromList(prop.plate)
+                    local miles     = GetMilesFromList(RRVehicle)
                     drawRct(0.097 - uix, 0.95 - uiy, 0.046, 0.03, 0, 0, 0, 150)
-                    DrawAdvancedText(0.171 - uix, 0.957 - uiy, 0.005, 0.0028, 0.3, "Mileage ~b~[ "..tostring(vehicle.miles).." ]~s~", 255, 255, 255, 255, 9, 1)
+                    DrawAdvancedText(0.171 - uix, 0.957 - uiy, 0.005, 0.0028, 0.3, "Mileage ~b~[ "..tostring(miles).." ]~s~", 255, 255, 255, 255, 9, 1)
                 end
             end
-        end)
+        end
     end
-end)
+)
 
+--==================================================================[FUNCTIONS]===========================================================================================-
+
+-- For Creating Text
 function DrawAdvancedText(x,y ,w,h,sc, text, r,g,b,a,font,jus)
     SetTextFont(font)
     SetTextProportional(0)
@@ -100,6 +98,7 @@ function DrawAdvancedText(x,y ,w,h,sc, text, r,g,b,a,font,jus)
     DrawText(x - 0.1+w, y - 0.02+h)
 end
 
+-- Checking If Vehicle is Owned
 function IsPlateInList(plate)
 	ESX.TriggerServerCallback('RR-MileagSystem:getVehiclesPlease', function (vehicles)
 
@@ -112,6 +111,7 @@ function IsPlateInList(plate)
 	end)
 end
 
+-- Getting Plate From List
 function GetPlateFromList(plate)
 	ESX.TriggerServerCallback('RR-MileagSystem:getVehiclesPlease', function (vehicles)
         for i = 1, #vehicles, 1 do
@@ -123,9 +123,23 @@ function GetPlateFromList(plate)
 	end)
 end
 
+-- Refreshing Vehicles
 function RefreshList()
     ESX.TriggerServerCallback('RR-MileagSystem:getVehiclesPlease', function(vehicles)
         vehicles = {}
         vehicles = vehicles
     end)
 end
+
+-- Getting Miles From DB
+function GetMilesFromList(miles)
+    ESX.TriggerServerCallback('RR-MileagSystem:getVehiclesPlease', function (vehicles)
+        for i = 1, #vehicles, 1 do
+            if vehicles[i].miles == miles then
+                return vehicles[i]
+            end
+        end
+		return nil
+    end)
+end
+

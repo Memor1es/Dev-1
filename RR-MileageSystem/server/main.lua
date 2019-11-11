@@ -5,19 +5,19 @@ local vehicles = nil
 local WaitTime = 0
 local minutes  = 60000
 
-
-
 ESX.RegisterServerCallback('RR-MileagSystem:getVehiclesPlease', function(source, cb)
-	local _source  = source
-	local xPlayer  = ESX.GetPlayerFromId(_source)
-	local vehicles = {}
-	local result   = MySQL.Sync.fetchAll('SELECT * FROM owned_vehicles')
-	
+	MySQL.ready(function ()
+		local result = (MySQL.Sync.fetchScalar('SELECT * FROM owned_vehicles'))
+		local _source  = source
+		local xPlayer  = ESX.GetPlayerFromId(_source)
+		local vehicles = {}
+		
 		for i=1, #result, 1 do
 			local vehicle = result[i]
-			table.insert(vehicles, {vehicle = vehicle})
+				table.insert(vehicles, {vehicle = vehicle})
+			end
 		end
-		cb(vehicles)
+	end)
 end)
 
 
@@ -33,14 +33,18 @@ end)
 
 RegisterServerEvent('RR:UpdateMiles')
 AddEventHandler('RR:UpdateMiles', function(plate, miles)
-	local result   = MySQL.Sync.fetchAll('SELECT * FROM owned_vehicles')
-    for i = 1, #result, 1 do
-        if result[i].plate == plate then
-            MySQL.Async.execute("UPDATE owned_vehicles SET miles = @miles WHERE plate = @plate",{
-                ['@plate'] = plate,
-                ['@miles'] = tonumber(result[i].miles + miles)
-            })
-            result[i].miles = (result[i].miles + miles)
-        end
-	end
+	local _source = source
+	local xPlayer = ESX.GetPlayerFromId(_source)
+    MySQL.Async.fetchAll('SELECT * FROM owned_vehicles WHERE @plate = plate, @miles = miles', {
+		['@plate'] = plate,
+		['@miles'] = miles
+	},  function (result)
+		    if result[1] ~= nil then
+			    MySQL.Sync.execute("UPDATE owned_vehicles SET miles=@miles WHERE plate=@plate",{
+			        ['@miles'] = result[1].miles + miles, 
+			        ['@plate'] = plate
+				})
+			end
+		end
+	)		
 end)
